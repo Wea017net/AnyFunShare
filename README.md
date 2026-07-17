@@ -1,11 +1,11 @@
-# AnyFunShare
-2026年度 情報表現入門 オリジナルアプリ制作課題 成果物 - 2026 Introduction to information representation: Original App Development Assignment
 <p align="center">
   <img src="data/assets/app_icon.png" width="150" height="150" alt="AnyFunShare Icon">
 </p>
 
 <h1 align="center">AnyFunShare</h1>
 <p align="center">楽しいこと、なんでも共有しよう</p>
+2026年度 情報表現入門 オリジナルアプリ制作課題 成果物<br>2026 Introduction to information representation: Original App Development Assignment
+
 
 # 概要
 今自分がやっていることを自由に設定して Discord のアクティビティに表示、およびその時間を記録することができるアプリケーション
