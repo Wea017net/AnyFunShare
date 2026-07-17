@@ -1,0 +1,19 @@
+{
+  "InAppSettings": {
+    "DarkTheme": false,
+    "KeepWindowPos": false,
+    "WindowPosX": 20,
+    "WindowPosY": 20
+  },
+  "UserProfiles": {
+    "ActivityTitle": "勉強",
+    "Large_Image": "memo_1f4dd",
+    "Details": "",
+    "State": "",
+    "ElapsedTimeMode": "connectStart"
+  },
+  "ServerSettings": {
+    "ServerType": "release",
+    "Port": 3005
+  }
+}
