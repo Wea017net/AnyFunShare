@@ -35,4 +35,6 @@
 
 ## ライセンス
 
+- 本リポジトリ内の自作ソースコードは [MIT License](LICENSE) の下で公開します。
+- サードパーティコンポーネントのライセンス一覧は [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md) を参照してください。
 - 同梱フォント `源真ゴシック` は [SIL Open Font License 1.1](data/assets/font/GenShinGothic/SIL_Open_Font_License_1.1.txt) に従います。
