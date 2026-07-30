@@ -33,9 +33,6 @@
 - macOS, Linux での動作はサポートしていません。なお、Node.js がインストールされた環境であれば、`data` フォルダ内にある `config.json` の `ServerType` を 初期値の `release` から `debug` に書き換えることでサーバープロセスをパッケージ済みの `afs_server.exe` ではなく `afs_server.js` で起動させることができます。
 - Processing と Node.js 間の通信には `localhost:3005` をデフォルトで使用しています。もしポートが競合してしまう場合は、`config.json` の `Port` を任意の値に変更してください。
 
-- 制作者は Processing および Node.js の初学者です。上記の説明が誤っている可能性がありますが、ご了承ください。
-- 本プロジェクトは調整を加えた後、後日 GitHub にて公開予定です。リポジトリのリンクは `https://github.com/Wea017net/AnyFunShare` となる予定です。
-
 ## ライセンス
 
 - 同梱フォント `源真ゴシック` は [SIL Open Font License 1.1](data/assets/font/GenShinGothic/SIL_Open_Font_License_1.1.txt) に従います。

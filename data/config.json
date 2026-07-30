@@ -2,14 +2,15 @@
   "InAppSettings": {
     "DarkTheme": false,
     "KeepWindowPos": false,
+    "SaveLogFile": true,
     "WindowPosX": 20,
     "WindowPosY": 20
   },
   "UserProfiles": {
     "ActivityTitle": "勉強",
     "Large_Image": "memo_1f4dd",
-    "Details": "",
-    "State": "",
+    "Details": "数学",
+    "State": "レポート課題",
     "ElapsedTimeMode": "connectStart"
   },
   "ServerSettings": {

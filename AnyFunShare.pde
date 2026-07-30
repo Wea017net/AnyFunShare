@@ -16,6 +16,7 @@ boolean isPopupOpen = false;
 String activePopupMenu = "";
 
 Process nodeServer;
+Thread serverProcessLogThread;
 
 String activeTextFieldTitle = "";
 String activeDialogTitle = "";
@@ -32,6 +33,15 @@ long activityStartMillis = 0;
 
 boolean isDarkTheme = false;
 boolean keepWindowPos = false;
+boolean saveLogFile = true;
+
+PrintStream originalStdOut;
+PrintStream originalStdErr;
+boolean logCaptureInstalled = false;
+final Object logFileLock = new Object();
+final java.text.SimpleDateFormat logFileDateFormat = new java.text.SimpleDateFormat("yyyy-MM-dd");
+final java.text.SimpleDateFormat logLineTimeFormat = new java.text.SimpleDateFormat("HH:mm:ss.SSS");
+
 String currentTab;
 
 boolean isWindowLocked = false;
@@ -49,6 +59,11 @@ long activeRecordStartMillis = 0;
 String dConnectStatusDisp = "未接続";
 
 String connectingProgress = "none";
+long lastServerStatePollMillis = 0;
+final int SERVER_STATE_POLL_INTERVAL_MS = 700;
+boolean isServerStatePolling = false;
+boolean isServerStateSyncEnabled = false;
+boolean hasLocalActivityDraftChanges = false;
 
 float setCatX;
 float setCatY;
@@ -57,7 +72,7 @@ float setItemX;
 float setItemY;
 
 PImage appIcon;
-PImage iconSensors, iconChart, iconChartSelected, iconSettings, iconSettingsSelected, iconCheck, iconClose, iconCloseSmall, iconRefresh, iconBrush, iconDarkMode, iconFlip2Front;
+PImage iconSensors, iconChart, iconChartSelected, iconSettings, iconSettingsSelected, iconCheck, iconClose, iconCloseSmall, iconRefresh, iconBrush, iconDarkMode, iconFlip2Front, iconDescription, iconInfo;
 PImage actIconCooking, actIconDish, actIconMuscle, actIconMemo, actIconSandclock, actIconTechnologist, actIconWriting, actIconZzz;
 PFont GenShinGothic_Regular, GenShinGothic_Medium;
 
@@ -91,6 +106,8 @@ void setup() {
   iconBrush = loadImage("./assets/icon/brush.png");
   iconDarkMode = loadImage("./assets/icon/dark_mode.png");
   iconFlip2Front = loadImage("./assets/icon/flip_to_front.png");
+  iconDescription = loadImage("./assets/icon/description.png");
+  iconInfo = loadImage("./assets/icon/info.png");
 
   actIconCooking = loadImage("./assets/icon_activity/cooking_1f373.png");
   actIconDish = loadImage("./assets/icon_activity/dish_1f37d.png");
@@ -104,11 +121,12 @@ void setup() {
   setCatX = width * 0.05;
   setCatY = height * 0.1;
   setItemX = width * 0.05;
-  setItemY = height * 0.15;
+  setItemY = height * 0.14;
 
   currentTab = "Connect";
   textFont(GenShinGothic_Regular);
   loadSettings();
+  setupLogCapture();
   dialogElapsedTimeMode = getElapsedTimeModeDisplay(elapsedTimeMode);
   if (keepWindowPos) {
     surface.setLocation(windowPosX, windowPosY);
@@ -155,6 +173,7 @@ void loadSettings() {
 
     isDarkTheme = inAppSettings.getBoolean("DarkTheme", isDarkTheme);
     keepWindowPos = inAppSettings.getBoolean("KeepWindowPos", keepWindowPos);
+    saveLogFile = inAppSettings.getBoolean("SaveLogFile", saveLogFile);
     windowPosX = inAppSettings.getInt("WindowPosX", windowPosX);
     windowPosY = inAppSettings.getInt("WindowPosY", windowPosY);
 
@@ -270,6 +289,7 @@ void saveConfigJsonOrdered(String fullPath) {
   lines.append("  \"InAppSettings\": {");
   lines.append("    \"DarkTheme\": " + isDarkTheme + ",");
   lines.append("    \"KeepWindowPos\": " + keepWindowPos + ",");
+  lines.append("    \"SaveLogFile\": " + saveLogFile + ",");
   lines.append("    \"WindowPosX\": " + windowPosX + ",");
   lines.append("    \"WindowPosY\": " + windowPosY);
   lines.append("  },");
@@ -287,6 +307,141 @@ void saveConfigJsonOrdered(String fullPath) {
   lines.append("}");
 
   saveStrings(fullPath, lines.toArray());
+}
+
+boolean isWindowsPlatform() {
+  String osName = System.getProperty("os.name");
+  return osName != null && osName.toLowerCase().contains("win");
+}
+
+void setupLogCapture() {
+  if (logCaptureInstalled || !isWindowsPlatform()) {
+    return;
+  }
+
+  try {
+    originalStdOut = System.out;
+    originalStdErr = System.err;
+
+    PrintStream teeOut = new PrintStream(new TeeLogOutputStream(originalStdOut, "INFO"), true, "UTF-8");
+    PrintStream teeErr = new PrintStream(new TeeLogOutputStream(originalStdErr, "ERROR"), true, "UTF-8");
+
+    System.setOut(teeOut);
+    System.setErr(teeErr);
+    logCaptureInstalled = true;
+
+    println("Log capture initialized. saveLogFile=" + saveLogFile);
+  }
+  catch (Exception e) {
+    if (originalStdErr != null) {
+      e.printStackTrace(originalStdErr);
+    } else {
+      e.printStackTrace();
+    }
+  }
+}
+
+String getLogDirectoryPath() {
+  return dataPath("user/logs");
+}
+
+String getDailyLogFilePath(java.util.Date now) {
+  return getLogDirectoryPath() + File.separator + logFileDateFormat.format(now) + ".log";
+}
+
+void appendLineToLogFile(String channel, String message) {
+  if (!saveLogFile || message == null || message.length() == 0) {
+    return;
+  }
+
+  java.util.Date now = new java.util.Date();
+
+  synchronized (logFileLock) {
+    BufferedWriter writer = null;
+
+    try {
+      File logDir = new File(getLogDirectoryPath());
+      if (!logDir.exists()) {
+        logDir.mkdirs();
+      }
+
+      writer = new BufferedWriter(
+        new OutputStreamWriter(
+        new FileOutputStream(getDailyLogFilePath(now), true),
+        "UTF-8"
+        )
+        );
+
+      writer.write(logLineTimeFormat.format(now) + " [" + channel + "] " + message);
+      writer.newLine();
+    }
+    catch (Exception ignored) {
+      // ログ保存失敗時もアプリ本体は継続させる
+    }
+    finally {
+      if (writer != null) {
+        try {
+          writer.close();
+        }
+        catch (IOException ignored) {
+        }
+      }
+    }
+  }
+}
+
+class TeeLogOutputStream extends OutputStream {
+  private final PrintStream target;
+  private final String channel;
+  private final ByteArrayOutputStream lineBuffer;
+
+  TeeLogOutputStream(PrintStream target, String channel) {
+    this.target = target;
+    this.channel = channel;
+    this.lineBuffer = new ByteArrayOutputStream(256);
+  }
+
+  @Override
+    public synchronized void write(int b) throws IOException {
+    target.write(b);
+
+    if (b == '\n') {
+      flushLineBuffer();
+      return;
+    }
+
+    if (b != '\r') {
+      lineBuffer.write(b);
+    }
+  }
+
+  @Override
+    public synchronized void flush() throws IOException {
+    target.flush();
+  }
+
+  @Override
+    public synchronized void close() throws IOException {
+    flushLineBuffer();
+    target.flush();
+  }
+
+  private void flushLineBuffer() {
+    if (lineBuffer.size() == 0) {
+      return;
+    }
+
+    String line;
+    try {
+      line = lineBuffer.toString("UTF-8");
+    }
+    catch (Exception e) {
+      line = lineBuffer.toString();
+    }
+    lineBuffer.reset();
+
+    appendLineToLogFile(channel, line);
+  }
 }
 
 void mouseReleased() {
@@ -399,30 +554,50 @@ void openInputDialogAsync() {
 
   activeTextFieldTitle = "";
 
+  boolean didChangeActivityDraft = false;
+
   if (pendingDialogTitle.equals("1行目の情報")) {
+    String prevValue = textFieldDetails;
     if (result == null || result.length() < 2) {
       textFieldDetails = "";
     } else {
       textFieldDetails = result;
     }
+    didChangeActivityDraft = !textFieldDetails.equals(prevValue);
   } else if (pendingDialogTitle.equals("2行目の情報")) {
+    String prevValue = textFieldState;
     if (result == null || result.length() < 2) {
       textFieldState = "";
     } else {
       textFieldState = result;
     }
+    didChangeActivityDraft = !textFieldState.equals(prevValue);
   } else if (pendingDialogTitle.equals("カスタム設定")) {
+    String prevValue = textFieldActivityTitle;
     if (result != null && result.length() > 0) {
       textFieldActivityTitle = result;
     }
+    didChangeActivityDraft = !textFieldActivityTitle.equals(prevValue);
     isPopupOpen = false;
     activePopupMenu = "";
   }
   // 他のテキストボックスはここに追加
   // else if (pendingDialogTitle.equals("")) { serverPortStr = result; }
 
+  if (didChangeActivityDraft) {
+    markLocalActivityDraftChanged();
+  }
+
   saveUserProfiles();
   isDialogOpenNow = false;
+}
+
+void markLocalActivityDraftChanged() {
+  hasLocalActivityDraftChanges = true;
+}
+
+void clearLocalActivityDraftChanged() {
+  hasLocalActivityDraftChanges = false;
 }
 
 // Discordへの接続を開始
@@ -430,6 +605,7 @@ void checkConnectButton() {
   if (connectingProgress == "none" || connectingProgress == "failure") {
     if (isMouseOver(width * 0.83, height * 0.83, width * 0.24, height * 0.06, CENTER)) {
       println("Clicked Connect button");
+      isStatusTextChanged = false;
       activityStartMillis = resolveActivityStartMillis(true);
       connectingProgress = "connecting";
       int responseCode = updateDiscord(
@@ -441,11 +617,12 @@ void checkConnectButton() {
         activityStartMillis
         );
 
-      if (responseCode == 200) {
+      if (isConnectActionSuccessful(responseCode)) {
         beginActivityRecordSession(textFieldActivityTitle, System.currentTimeMillis());
+        clearLocalActivityDraftChanged();
         dConnectStatusDisp = "接続完了";
         connectingProgress = "connected";
-      } else if (responseCode >= 0) {
+      } else {
         dConnectStatusDisp = "接続失敗";
         connectingProgress = "failure";
       }
@@ -469,14 +646,16 @@ void checkRefreshButton() {
         activityStartMillis
         );
 
-      if (responseCode == 200) {
+      if (isConnectActionSuccessful(responseCode)) {
         recordActiveActivitySession(activeRecordActivityTitle, activeRecordStartMillis, System.currentTimeMillis());
         beginActivityRecordSession(textFieldActivityTitle, System.currentTimeMillis());
+        clearLocalActivityDraftChanged();
         isStatusTextChanged = true;
         statusTextChangeStartTime = millis();
         dConnectStatusDisp = "接続完了";
         connectingProgress = "connected";
-      } else if (responseCode >= 0) {
+      } else {
+        isStatusTextChanged = false;
         dConnectStatusDisp = "更新失敗";
         connectingProgress = "connected";
       }
@@ -485,21 +664,43 @@ void checkRefreshButton() {
   return;
 }
 
+boolean isConnectActionSuccessful(int responseCode) {
+  if (responseCode == 200) {
+    return true;
+  }
+
+  if (!isServerStateSyncEnabled) {
+    return false;
+  }
+
+  // HTTP応答遅延で-1になっても、実際にDiscord表示済みなら成功扱いにする
+  JSONObject stateRoot = fetchDiscordActivityState();
+  if (stateRoot != null && stateRoot.getBoolean("success", false) && stateRoot.getBoolean("connected", false)) {
+    println("[Connect] treating as success by /activity/state confirmation.");
+    applyServerActivityState(stateRoot);
+    return true;
+  }
+
+  return false;
+}
+
 // Discordとの接続を切断（アクティビティクリア）
 void checkDisconnectButton() {
   if (connectingProgress == "connected") {
     if (isMouseOver(width * 0.56, height * 0.84, width * 0.24, height * 0.06, CENTER)) {
       println("Clicked Disconnect button");
-      int responseCode = clearDiscordActivity();
+      int responseCode = clearDiscordActivityWithRecovery();
 
       if (responseCode == 200) {
         recordActiveActivitySession(activeRecordActivityTitle, activeRecordStartMillis, System.currentTimeMillis());
         clearActivityRecordSession();
+        clearLocalActivityDraftChanged();
         isStatusTextChanged = false;
         dConnectStatusDisp = "未接続";
         connectingProgress = "none";
         activityStartMillis = 0;
-      } else if (responseCode >= 0) {
+      } else {
+        isStatusTextChanged = false;
         dConnectStatusDisp = "切断失敗";
         connectingProgress = "connected";
       }
@@ -508,7 +709,44 @@ void checkDisconnectButton() {
   return;
 }
 
+int clearDiscordActivityWithRecovery() {
+  int responseCode = clearDiscordActivity();
+  if (responseCode == 200) {
+    return responseCode;
+  }
+
+  println("[Disconnect] clear failed. Trying local server recovery...");
+
+  try {
+    stopServerProcess();
+    delay(150);
+    startServerProcess();
+  }
+  catch (Exception e) {
+    println("[Disconnect] server recovery failed.");
+    e.printStackTrace();
+    return responseCode;
+  }
+
+  int retryResponseCode = clearDiscordActivity();
+  if (retryResponseCode == 200) {
+    println("[Disconnect] recovered by server restart.");
+    return 200;
+  }
+
+  if (isServerStateSyncEnabled) {
+    JSONObject stateRoot = fetchDiscordActivityState();
+    if (stateRoot != null && stateRoot.getBoolean("success", false) && !stateRoot.getBoolean("connected", true)) {
+      println("[Disconnect] state endpoint indicates disconnected after recovery.");
+      return 200;
+    }
+  }
+
+  return retryResponseCode;
+}
+
 void draw() {
+  requestServerActivityStateSync();
   background(cSurface);
   tBHeight = height - height / 9; // ウィンドウサイズの動的変更に対応させるためdraw内で計算
   drawBottomTabBar();
@@ -529,34 +767,170 @@ void draw() {
   }
 }
 
-// サーバープロセス起動
-void startServerProcess() throws Exception {
-  File nodeServerDir = new File(sketchPath(), "node-server");
-
-  if ("release".equalsIgnoreCase(serverType)) {
-    File releaseServerExecutable = findReleaseServerExecutable(nodeServerDir);
-
-    if (releaseServerExecutable != null) {
-      nodeServer = new ProcessBuilder(
-        releaseServerExecutable.getAbsolutePath()
-        ).directory(releaseServerExecutable.getParentFile()).start();
-
-      println("Release server started: " + releaseServerExecutable.getAbsolutePath());
-      return;
-    }
-
-    throw new FileNotFoundException("Release server executable was not found under node-server.");
+void requestServerActivityStateSync() {
+  if (!isServerStateSyncEnabled) {
+    return;
   }
 
+  if (isServerStatePolling) {
+    return;
+  }
+
+  if (millis() - lastServerStatePollMillis < SERVER_STATE_POLL_INTERVAL_MS) {
+    return;
+  }
+
+  lastServerStatePollMillis = millis();
+  isServerStatePolling = true;
+  thread("pollServerActivityStateAsync");
+}
+
+void pollServerActivityStateAsync() {
+  try {
+    JSONObject state = fetchDiscordActivityState();
+    applyServerActivityState(state);
+  }
+  finally {
+    isServerStatePolling = false;
+  }
+}
+
+void applyServerActivityState(JSONObject stateRoot) {
+  if (stateRoot == null || !stateRoot.getBoolean("success", false)) {
+    return;
+  }
+
+  boolean isConnected = stateRoot.getBoolean("connected", false);
+
+  if (!isConnected) {
+    if (!connectingProgress.equals("connecting")) {
+      connectingProgress = "none";
+      dConnectStatusDisp = "未接続";
+      isStatusTextChanged = false;
+    }
+    return;
+  }
+
+  JSONObject activity = stateRoot.getJSONObject("activity");
+  if (activity == null) {
+    return;
+  }
+
+  if (hasLocalActivityDraftChanges) {
+    connectingProgress = "connected";
+    dConnectStatusDisp = "接続完了";
+    return;
+  }
+
+  textFieldActivityTitle = activity.getString("name", textFieldActivityTitle);
+  textFieldDetails = activity.getString("details", "");
+  textFieldState = activity.getString("state", "");
+
+  JSONObject assets = activity.getJSONObject("assets");
+  if (assets != null) {
+    String largeImageKey = assets.getString("large_image", dropdownLargeImageKey);
+    if (largeImageKey != null && !largeImageKey.equals("")) {
+      dropdownLargeImageKey = largeImageKey;
+    }
+  }
+
+  connectingProgress = "connected";
+  dConnectStatusDisp = "接続完了";
+}
+
+// サーバープロセス起動
+void startServerProcess() throws Exception {
+  File nodeServerDir = new File(sketchPath(), "data/node-server");
+
+  if (!"release".equalsIgnoreCase(serverType)) {
+    try {
+      startDebugNodeServer(nodeServerDir);
+      isServerStateSyncEnabled = isLocalEndpointAvailable("/activity/state");
+      println("Server state sync enabled: " + isServerStateSyncEnabled);
+      return;
+    }
+    catch (Exception debugError) {
+      println("Debug server failed. Falling back to release server.");
+      debugError.printStackTrace();
+      stopServerProcess();
+    }
+  }
+
+  File releaseServerExecutable = findReleaseServerExecutable(nodeServerDir);
+
+  if (releaseServerExecutable != null) {
+    ProcessBuilder processBuilder = new ProcessBuilder(
+      releaseServerExecutable.getAbsolutePath()
+      );
+    processBuilder.directory(releaseServerExecutable.getParentFile());
+    processBuilder.redirectErrorStream(true);
+    nodeServer = processBuilder.start();
+    startServerProcessLogPump(nodeServer, "release-server");
+
+    println("Release server started: " + releaseServerExecutable.getAbsolutePath());
+    waitForServerReady(serverPort, 10000);
+    isServerStateSyncEnabled = isLocalEndpointAvailable("/activity/state");
+    println("Server state sync enabled: " + isServerStateSyncEnabled);
+    return;
+  }
+
+  throw new FileNotFoundException("Release server executable was not found under node-server.");
+}
+
+void startDebugNodeServer(File nodeServerDir) throws Exception {
   File nodeServerScript = new File(nodeServerDir, "afs_server.js");
-  nodeServer = new ProcessBuilder(
+  ProcessBuilder processBuilder = new ProcessBuilder(
     "node",
     nodeServerScript.getAbsolutePath()
-    ).directory(nodeServerDir).start();
+    );
+  processBuilder.directory(nodeServerDir);
+  processBuilder.redirectErrorStream(true);
+  nodeServer = processBuilder.start();
+  startServerProcessLogPump(nodeServer, "debug-node");
 
   println("Node server started: " + nodeServerScript.getAbsolutePath());
   waitForServerReady(serverPort, 10000);
+  if (!isLocalEndpointAvailable("/health")) {
+    throw new IOException("Debug node server is reachable by port but /health is unavailable.");
+  }
   println("HTTP server is ready on port: " + serverPort);
+}
+
+void startServerProcessLogPump(final Process process, final String processLabel) {
+  if (process == null) {
+    return;
+  }
+
+  serverProcessLogThread = new Thread(new Runnable() {
+    @Override
+    public void run() {
+      BufferedReader reader = null;
+      try {
+        reader = new BufferedReader(new InputStreamReader(process.getInputStream(), "UTF-8"));
+        String line;
+        while ((line = reader.readLine()) != null) {
+          println("[server " + processLabel + "] " + line);
+        }
+      }
+      catch (Exception e) {
+        if (process.isAlive()) {
+          println("[server " + processLabel + "] log pump error: " + e.getClass().getSimpleName());
+        }
+      }
+      finally {
+        if (reader != null) {
+          try {
+            reader.close();
+          }
+          catch (Exception ignore) {
+          }
+        }
+      }
+    }
+  }, "server-log-pump-" + processLabel);
+
+  serverProcessLogThread.setDaemon(true);
+  serverProcessLogThread.start();
 }
 
 
@@ -583,9 +957,32 @@ void waitForServerReady(int port, int timeoutMillis) throws Exception {
   throw new IOException("Timed out waiting for HTTP server on port " + port + ".");
 }
 
+boolean isLocalEndpointAvailable(String endpointPath) {
+  HttpURLConnection conn = null;
+
+  try {
+    URL url = new URL("http://localhost:" + serverPort + endpointPath);
+    conn = (HttpURLConnection)url.openConnection();
+    conn.setConnectTimeout(1200);
+    conn.setReadTimeout(1200);
+    conn.setRequestMethod("GET");
+
+    int status = conn.getResponseCode();
+    return status == 200;
+  }
+  catch (Exception e) {
+    return false;
+  }
+  finally {
+    if (conn != null) {
+      conn.disconnect();
+    }
+  }
+}
+
 // サーバー実行ファイルを探す
 File findReleaseServerExecutable(File nodeServerDir) {
-  File preferredReleaseExecutable = new File(nodeServerDir, "release/afs_server.exe");
+  File preferredReleaseExecutable = new File(nodeServerDir, "afs_server.exe");
   if (preferredReleaseExecutable.exists()) {
     return preferredReleaseExecutable;
   }
@@ -652,6 +1049,10 @@ void stopServerProcess() {
   }
   catch (Exception e) {
     e.printStackTrace();
+  }
+  finally {
+    nodeServer = null;
+    serverProcessLogThread = null;
   }
 }
 

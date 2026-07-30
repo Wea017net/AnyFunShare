@@ -14,12 +14,20 @@ void drawScreenSettings() {
   textSize(18);
   fill(cPrimary);
   text("表示", setCatX, setCatY);
+  text("デバッグ", setCatX, setCatY + 210);
+  text("アプリ情報", setCatX, setCatY + 334);
 
-  drawOptionItemToggle(0, isDarkTheme, iconDarkMode, "ダークモード", "目に優しい暗い色を使用");
+  drawOptionItemToggle(0, iconDarkMode, "ダークモード", "目に優しい暗い色を使用");
   drawSwitch(width * 0.86, setItemY + 30, isDarkTheme);
 
-  drawOptionItemToggle(86, keepWindowPos, iconFlip2Front, "ウィンドウ位置を保持", "次回起動時に位置を復元");
+  drawOptionItemToggle(86, iconFlip2Front, "ウィンドウ位置を保持", "次回起動時に位置を復元");
   drawSwitch(width * 0.86, setItemY + 86 + 30, keepWindowPos);
+
+  drawOptionItemToggle(210, iconDescription, "ログを保存", "data\\user\\logs に保存されます");
+  drawSwitch(width * 0.86, setItemY + 210 + 30, saveLogFile);
+
+  drawOptionItemToggle(334, iconInfo, "バージョン", appVersion);
+
   popStyle();
 }
 
@@ -29,8 +37,7 @@ boolean isOptionItemToggleHovered(float posY) {
 }
 
 // トグル式設定オプション
-// currentValueはswitchで表示するようにしたので使っていないが、一応残しておく
-void drawOptionItemToggle(float posY, boolean currentValue, PImage iconName, String optionName, String optionDetail) {
+void drawOptionItemToggle(float posY, PImage iconName, String optionName, String optionDetail) {
   pushStyle();
   boolean hovered = isOptionItemToggleHovered(posY);
 
@@ -67,6 +74,12 @@ void checkSettingsTap() {
 
   if (isOptionItemToggleHovered(86)) {
     keepWindowPos = !keepWindowPos;
+    saveSettings(false);
+    return;
+  }
+
+  if (isOptionItemToggleHovered(210)) {
+    saveLogFile = !saveLogFile;
     saveSettings(false);
     return;
   }

@@ -590,6 +590,7 @@ void handleActivityTypePopupMouseReleased() {
 
     if (i == 7) {
       dropdownLargeImageKey = getActivityIconKeyFromTypeIndex(i);
+      markLocalActivityDraftChanged();
       pendingDialogTitle = "カスタム設定";
       pendingDialogMessage = "アクティビティ名を入力してください";
       pendingTargetValue = textFieldActivityTitle;
@@ -599,6 +600,7 @@ void handleActivityTypePopupMouseReleased() {
 
     textFieldActivityTitle = activityLabels[i];
     dropdownLargeImageKey = getActivityIconKeyFromTypeIndex(i);
+    markLocalActivityDraftChanged();
     saveUserProfiles();
     isPopupOpen = false;
     activePopupMenu = "";
@@ -662,6 +664,7 @@ void handleIconPopupMouseReleased() {
 
     if (mouseX >= tileLeft && mouseX <= tileRight && mouseY >= tileTop && mouseY <= tileBottom) {
       dropdownLargeImageKey = getActivityIconKeyFromIndex(i);
+      markLocalActivityDraftChanged();
       saveUserProfiles();
       isPopupOpen = false;
       activePopupMenu = "";
