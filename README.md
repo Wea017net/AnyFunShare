@@ -6,8 +6,10 @@
 <p align="center">楽しいこと、なんでも共有しよう</p>
 2026年度 情報表現入門 オリジナルアプリ制作課題 成果物<br>2026 Introduction to information representation: Original App Development Assignment
 
+## ダウンロード
+Releases より最新のリリースをダウンロードできます：<br>https://github.com/Wea017net/AnyFunShare/releases
 
-# 概要
+## 概要
 今自分がやっていることを自由に設定して Discord のアクティビティに表示、およびその時間を記録することができるアプリケーション
 
 ## 機能
