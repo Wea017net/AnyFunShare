@@ -12,7 +12,6 @@
   "type": "commonjs",
   "dependencies": {
     "discord-ipc": "^1.0.0",
-    "express": "^5.2.1",
-    "net": "^1.0.2"
+    "express": "^5.2.1"
   }
 }
