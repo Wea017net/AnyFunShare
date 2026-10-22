@@ -16,7 +16,13 @@ Direct dependencies in `data/node-server/package.json`:
 
 - `discord-ipc`: MIT
 - `express`: MIT
-- `net`: MIT
+
+The packaged server includes Node.js 24.22.1. Its license and bundled component notices are in `data/node-server/Node-LICENSE.txt`. The `net` module is part of Node.js.
+
+Build-only dependencies:
+
+- `esbuild`: MIT
+- `postject`: MIT
 
 Transitive dependencies (from `data/node-server/package-lock.json`) include licenses such as:
 

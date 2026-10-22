@@ -21,7 +21,7 @@ Releases より最新のリリースをダウンロードできます：<br>http
 ## 動作環境
 
 - Processing 4
-- Node.js 24
+- Node.js 24.22.1 以降の 24.x（通常利用では修正版ランタイムを同梱）
 - Discord デスクトップ アプリ
 
 
@@ -34,6 +34,22 @@ Releases より最新のリリースをダウンロードできます：<br>http
 - Discord との通信には Node.js を使用しています。Node.js がインストールされていない環境でも動作するように Windows 実行ファイル形式 (.exe) にパッケージ化しています。
 - macOS, Linux での動作はサポートしていません。なお、Node.js がインストールされた環境であれば、`data` フォルダ内にある `config.json` の `ServerType` を 初期値の `release` から `debug` に書き換えることでサーバープロセスをパッケージ済みの `afs_server.exe` ではなく `afs_server.js` で起動させることができます。
 - Processing と Node.js 間の通信には `localhost:3005` をデフォルトで使用しています。もしポートが競合してしまう場合は、`config.json` の `Port` を任意の値に変更してください。
+
+## サーバーのビルド（Windows x64）
+
+2026年10月の [Node.js セキュリティ更新](https://nodejs.org/en/blog/vulnerability/october-2026-security-releases) に対応し、同梱サーバーは Node.js 24.22.1 でビルドしています。デバッグ起動でも 24.22.1 以降の 24.x を使用してください。古いランタイムではサーバーの起動を拒否します。
+
+`data/node-server` で以下を実行してください。
+
+```powershell
+npm ci
+npm run build
+npm test
+```
+
+ビルドは `.node-version` に指定した公式 Windows x64 バイナリを取得し、SHA-256 を検証してから Node.js SEA 形式の `afs_server.exe` を生成します。依存パッケージも実行ファイルへ同梱されます。ビルドにはインターネット接続が必要です。
+
+同梱ランタイムの確認は `./afs_server.exe --runtime-version` で行えます。今後ランタイムを更新する場合は `.node-version`、`build-release.ps1` の公式 SHA-256、`package.json` の `engines`、`runtime-version.cjs` の最低バージョンを合わせて更新し、再ビルドしてください。
 
 ## ライセンス
 
