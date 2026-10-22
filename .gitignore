@@ -1,3 +1,5 @@
 node-server/node_modules/
 data/node-server/node_modules/
 .vscode/settings.json
+data/node-server/.build/
+data/user/
