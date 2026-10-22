@@ -1,3 +1,10 @@
+require("./runtime-version.cjs").assertSupportedRuntime();
+
+if (process.argv.includes("--runtime-version")) {
+    console.log(process.versions.node);
+    process.exit(0);
+}
+
 const express = require("express");
 const fs = require("fs");
 const path = require("path");
