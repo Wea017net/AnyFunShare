@@ -6,7 +6,7 @@ import java.awt.Graphics2D;
 import javax.swing.*;
 import com.jogamp.newt.opengl.GLWindow;
 
-String appVersion = "1.0.0";
+String appVersion = "1.0.1";
 
 int tBHeight;
 int serverPort = 3005;
