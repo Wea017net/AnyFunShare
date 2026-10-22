@@ -62,6 +62,40 @@ void drawRadioButton(float x, float y, int size, boolean isSelected) {
   popStyle();
 }
 
+// 描画用の文字列だけを省略し、入力値・保存値・送信値は変更しない。
+String abbreviateDisplayText(String value, int fullWidthThreshold, int halfWidthThreshold) {
+  // 全角・半角の混在時は、それぞれの上限に対する割合で判定する。
+  int displayWidth = 0;
+  int displayLimit = (fullWidthThreshold - 1) * (halfWidthThreshold - 1);
+  for (int offset = 0; offset < value.length(); ) {
+    int codePoint = value.codePointAt(offset);
+    displayWidth += isHalfWidthDisplayCharacter(codePoint) ? fullWidthThreshold - 1 : halfWidthThreshold - 1;
+    offset += Character.charCount(codePoint);
+    if (displayWidth > displayLimit) {
+      // 省略開始位置の直前まで（全角なら閾値 - 2文字）を残す。
+      int prefixWidth = 0;
+      int prefixLimit = (fullWidthThreshold - 2) * (halfWidthThreshold - 2);
+      int end = 0;
+      while (end < value.length()) {
+        int prefixCodePoint = value.codePointAt(end);
+        int characterWidth = isHalfWidthDisplayCharacter(prefixCodePoint) ? fullWidthThreshold - 2 : halfWidthThreshold - 2;
+        if (prefixWidth + characterWidth > prefixLimit) {
+          break;
+        }
+        prefixWidth += characterWidth;
+        end += Character.charCount(prefixCodePoint);
+      }
+      return value.substring(0, end) + "...";
+    }
+  }
+  return value;
+}
+
+boolean isHalfWidthDisplayCharacter(int codePoint) {
+  // ASCII・半角カタカナ（濁点・半濁点を含む）を半角として扱う。
+  return codePoint <= 0x7F || (codePoint >= 0xFF61 && codePoint <= 0xFF9F);
+}
+
 void drawTextBox(String textFieldTitle, float x, float y, float w, float h, int mode, String targetTextField) {
   pushStyle();
   noStroke();

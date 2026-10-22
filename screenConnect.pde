@@ -54,11 +54,11 @@ void drawScreenConnect() {
   text("表示設定", width * 0.06, height * 0.51);
   // text("詳細情報1", width * 0.06, height * 0.3);
 
-  drawPopupBox("アクティビティの種類（タイトル）", width * 0.388, height * 0.255, width * 0.652, height * 0.08, CENTER, textFieldActivityTitle);
+  drawPopupBox("アクティビティの種類（タイトル）", width * 0.388, height * 0.255, width * 0.652, height * 0.08, CENTER, abbreviateDisplayText(textFieldActivityTitle, 15, 25));
   drawPopupImageBox("アイコン", width * 0.84, height * 0.255, width * 0.2, height * 0.08, CENTER, getActivityIconImage(dropdownLargeImageKey));
 
-  drawTextBox("1行目の情報", width * 0.5, height * 0.355, width * 0.88, height * 0.08, CENTER, textFieldDetails);
-  drawTextBox("2行目の情報", width * 0.5, height * 0.455, width * 0.88, height * 0.08, CENTER, textFieldState);
+  drawTextBox("1行目の情報", width * 0.5, height * 0.355, width * 0.88, height * 0.08, CENTER, abbreviateDisplayText(textFieldDetails, 21, 34));
+  drawTextBox("2行目の情報", width * 0.5, height * 0.455, width * 0.88, height * 0.08, CENTER, abbreviateDisplayText(textFieldState, 21, 34));
 
   drawPopupBox("経過時間の基準", width * 0.5, height * 0.57, width * 0.88, height * 0.08, CENTER, dialogElapsedTimeMode);
 
